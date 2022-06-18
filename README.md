@@ -18,12 +18,15 @@ Please set the programs as:
     [Your install directory]/GESI/  
     [Your install directory]/gammachirp-filterbank/GCFBv233/  
 
-You may need change some directory path.  
+
+You need to learn GCFBv233[2] if you wish to set hearing level including hearing-impaired audiogram.
   
 
 ---  
 Reference  
 - [1] Toshio Irino, Honoka Tamaru, Ayako Yamamoto, "Speech intelligibility of simulated hearing loss sounds and its prediction using the Gammachirp Envelope Similarity Index (GESI)," arXiv preprint, [arXiv.2206.06573], https://doi.org/10.48550/arXiv.2206.06573, 14 Jun 2022.
+- [2] Toshio Irino, "WHIS: Hearing impairment simulator based on the gammachirp auditory filterbank," arXiv preprint, [arXiv.2206.06604], 
+https://doi.org/10.48550/arXiv.2206.06604, 14 Jun 2022. (This paper includes the description of GCFBv233.)
 
 
   
