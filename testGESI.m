@@ -25,10 +25,9 @@ DirRoot = [DirProg '/'];
 % Please download and put it at the same level of this directory.
 % https://github.com/AMLAB-Wakayama/gammachirp-filterbank/GCFBv233
 %
-DirGCFB = [DirRoot '../gammachirp-filterbank/GCFBv233/'];  % normal install 
-%DirGCFB = [DirRoot '../../../GitHub_Public/gammachirp-filterbank/GCFBv233/'];  % local use only
+DirGCFB = [DirRoot '../gammachirp-filterbank/GCFBv233/'];  % normal install 
 %DirGCFB = [DirRoot '../GCFBv233/'];  % local use only
-%exist(DirGCFB)   % for check directory
+% exist(DirGCFB)   % for check directory
 addpath(DirGCFB) 
 StartupGCFB;   % startup GCFB
 
