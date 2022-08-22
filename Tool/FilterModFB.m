@@ -4,12 +4,13 @@
 %   Created:  07 Feb 2022 from modFbank_YK_v2 in mrGEDI by YamaKatsu
 %   Modified: 07 Feb 2022
 %   Modified: 11 Feb 2022 Separating  calculation of filter coef. and filtering for speed up
+%   Modified:  4 Aug 2022  v110  introducing 512 Hz as a default
 %
 %   INPUT:
 %           Env:  The envelope to be filtered
 %           ParamMFB.fs: sampling frequency of the envelope
 %           ParamMFB.fc: center frequencies of the modulation filters 
-%                                 default: [1 2 4 8 16 32 64 128 256];
+%                                 default: [1 2 4 8 16 32 64 128 256]; --> [1 2 4 8 16 32 64 128 256 512]; 
 %           ParamMFB.SwPlot:  Plot frequency response of MFB
 %
 %   OUTPUT:
@@ -25,9 +26,17 @@
 function [OutMFB, ParamMFB] = FilterModFB(Env,ParamMFB)
 persistent MFcoefIIR
 
-if nargin < 1, help(mfilename); return; end
+ParamMFB.fc_default =[1, 2, 4, 8, 16, 32, 64, 128, 256, 512]; % v110 4 Aug 202
+
+if nargin < 1, 
+    % help(mfilename); 
+    OutMFB = [];  
+    ParamMFB.fc = ParamMFB.fc_default; % just reply the default setting
+    return; 
+end
 if isfield(ParamMFB,'fs') ==0,  error('Specify ParamMFB.fs'); end
-if isfield(ParamMFB,'fc') ==0,  ParamMFB.fc =[1 2 4 8 16 32 64 128 256]; end
+% if isfield(ParamMFB,'fc') ==0,  ParamMFB.fc =[1 2 4 8 16 32 64 128 256]; end
+if isfield(ParamMFB,'fc') ==0,  ParamMFB.fc =ParamMFB.fc_default; end % v110 4 Aug 2022
 if isfield(ParamMFB,'SwPlot') ==0, ParamMFB.SwPlot = 0; end
 
 if isfield(MFcoefIIR,'a') == 0

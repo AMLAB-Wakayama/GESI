@@ -4,7 +4,7 @@
 %       Objective mesure index for speech intelligibility including hearing loss
 %       Irino, T.
 %       Created : 30 Jan 2022   IT, New 1st version
-%       Modified: 30 Jan 2022   IT
+%       Modified: 30 Jan 2022   IT  (v100)
 %       Modified:   2 Feb 2022   IT
 %       Modified:   7 Feb 2022   IT introducing ModFB
 %       Modified:   8 Feb 2022   IT % keeping GCout in GESIparam.DirGCout
@@ -15,13 +15,18 @@
 %       Modified:  20 Mar 2022  IT introduction of GCFBv233
 %       Modified:  12 May 2022  IT  sum(weightMFB) == 1
 %       Modified:  26 May 2022  IT  sum(weightMFB) == 1をやめて戻した。後でmeanで最終の値を求めていることと、STOIと同程度の[a,b]にするため。
-%       Modified:   7 Jun  2022   IT  Introduced TimeAlignXcorr　+  Taperwindow to SndRef/SndTest
+%       Modified:   7 Jun  2022   IT  (v108)  Introduced TimeAlignXcorr　+  Taperwindow to SndRef/SndTest
+%       Modified:  29 Jul  2022   IT  (v109)  introduced GESIparam.SwWeightProhibit
+%       Modified:   4 Aug 2022   IT  v110  introduction of version number +  normalization of SSI weight
+%       Modified:  22 Aug 2022   IT  v120  The order of input arguments (SndTest, SndRef, ... ) 
+%                                          was replaced to (SndRef, SndTest, ... ) as the same as in stoi,estoi,& haspi
+%
 %
 %
 %   Inputs:
-%       SndTest:  input signal of enhanced/unprocessed noisy speech  (NH or HI)
 %       SndRef:   input signal of speech reference  (always analyzed by NH)
 %                           Clean speech or other sounds when comparing NH and HI listeners.
+%       SndTest:  input signal of enhanced/unprocessed noisy speech  (NH or HI)
 %       GCparam:  parameters of dynamic compressive gammachirp filterbank (dcGC-FB)
 %                        GCparam.HLoss: Hearing loss settings
 %       GESIparam:   parameter of GESI
@@ -42,15 +47,24 @@
 %           Pcorrect: percent correct of speech intelligibility calculated  from d
 %
 %   Note: GCFBv233 is required.
+% 
+%   Note:  Result.d may fluctuate very slightly in every simulation
+%             because of the random noise floor at the output of the GCFB
+%
+% NOTE: 22 Aug 2022.  Important change  -- Please be careful when using the previous version
+%     The order of input arguments was replaced as the same as in stoi,estoi,& haspi
+%     v110 and before:  [Result, GESIparam] = GESI(SndTest, SndRef, GCparam, GESIparam)
+%     v120 :            [Result, GESIparam] = GESI(SndRef, SndTest, GCparam, GESIparam)
 %
 %
-%
-function [ Result, GESIparam] = GESI(SndTest, SndRef, GCparam, GESIparam)
+function [Result, GESIparam] = GESI(SndRef, SndTest, GCparam, GESIparam)
 
 DirProg = fileparts(which(mfilename)); % Directory of this program
 addpath([DirProg '/Tool/']);     % Path to Tool
 addpath([DirProg '/Tool/world-0.2.4_matlab/']);     % Path to WORLD
 Result.Name = 'GESI';
+Result.Version = 'v120';  % version number from v120
+
 
 % making directory and data for keeping GCout
 if isfield(GESIparam,'DirGCout') == 0
@@ -82,6 +96,7 @@ else
     GESIparam.NameGCoutTest = '';
     SwSave = 0;
 end
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Sound check
@@ -137,7 +152,7 @@ GCparam.DynHPAF.StrPrc = 'frame-base'; % mandatory
 GCparam.StrFloor = 'NoiseFloor';
 
 %%%%%%%%%%%%%%%%%%%%%%
-% Parameters of correlation anaysis 
+% Parameters of GESI anaysis 
 %%%%%%%%%%%%%%%%%%%%%%
 if isfield(GESIparam,'Sim') == 0 || isfield(GESIparam.Sim,'PowerRatio') ==0  % 外部からコントロールできるように
     GESIparam.Sim.PowerRatio = 0.6; % 6:4
@@ -150,12 +165,23 @@ if isfield(GESIparam,'Sim') == 0 || isfield(GESIparam.Sim,'PowerRatio') ==0  % �
     %     田丸実験で、 -20dB条件の SRTが人ごとに大きく異なる。これは、あきらかに tone pip数と関連しているであろう。
     %　  個人ごとの違いを出すためにはこれを調整か？
 end
+
+[~, MFBparam] = FilterModFB; % always using the default settings of MFB
 if isfield(GESIparam.Sim,'weightMFB') ==0  % 外部からコントロールできるように
-    LenMFB = 9; % default length of MFB fc see FilterModFB.m 
+    LenMFB = length(MFBparam.fc); % length of MFB fc see FilterModFB.m    
     GESIparam.Sim.weightMFB = [ones(LenMFB,1)];
-    % GESIparam.Sim.weightMFB = [0; 0; 0; ones(4,1); 0; 0]; % [1, 2, 4, 8, 16, 32, 64, 128, 256]
+    % GESIparam.Sim.weightMFB = [0; 0; 0; ones(4,1); 0; 0; 0]; % [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
 end
 
+
+if isfield(GESIparam.Sim,'SwWeightProhibit') == 0  % 外部からコントロールできるように
+    GESIparam.Sim.SwWeightProhibit = 1;  % default 禁止領域設定　 introduced 29 Jul 2022
+    % 従来法を使いたい場合は、外部で以下のように設定
+    % GESIparam.Sim.SwWeightProhibit = 0;
+end
+if isfield(GESIparam.Sim,'RangeWeightProhibit') == 0  % 外部からコントロールできるように
+    GESIparam.Sim.RangeWeightProhibit  = 1; % 禁止領域、とりあえず１倍で計算
+end
 
 %%%%%%%%%%%%%%%%%%
 % sound  sampling rate conversion & normalization
@@ -190,7 +216,8 @@ if exist(DirNameTest) == 0
 
     % ModFB analysis.   MFB is common in Test and Ref
     MFBparam.fs = GCparamTest.DynHPAF.fs;   
-    MFBparam.fcutEnv = 150;
+    % MFBparam.fcutEnv = 150; %v109以前
+    MFBparam.fcutEnv =  max(MFBparam.fc);  % v110  4 Jun 2022  extended fcut of the MFB  for using 512 Hz ModFilter ：　256にする理由もない。
     [MFBparam.bzLPF, MFBparam.apLPF] = butter(1, MFBparam.fcutEnv/(MFBparam.fs/2));
 
     for nch = 1:GCparam.NumCh
@@ -242,7 +269,16 @@ if exist(DirNameRef) == 0
     SSIparam.Fr1        = GCparamRef.Fr1;
     SSIparam.F0_limit = F0MeanRef;
     [SSIweight, SSIparam] = F0limit2SSIweight(SSIparam);
-    SSIparam.weight = SSIweight; % for keeping weight
+    %    SSIparam.weight = SSIweight; % for keeping weight  v109 and before
+    
+    %%%  Introdued normalization of SSIweight  v110    4 Aug 2022
+    SSIparam.F0_limit_Norm = 125; % F0 for normalization
+    SSIparamNorm = SSIparam; % copy    
+    SSIparamNorm.F0_limit = SSIparam.F0_limit_Norm ; % freq for normalization
+    [SSIweightNorm] = F0limit2SSIweight(SSIparamNorm);
+    SSIparam.weight_AmpNorm = sum(SSIweightNorm)/sum(SSIweight);
+    SSIparam.weight = SSIparam.weight_AmpNorm * SSIweight;  % normalization
+    %%%%%%
 
     if SwSave == 1
         disp(['save: ' DirNameRef ])
@@ -278,8 +314,11 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 [NumCh, LenMFB, LenEnv]  = size(GCModEnvRef);
 %%% ---> not used:  weightMFB   = GESIparam.Sim.weightMFB/sum(GESIparam.Sim.weightMFB); % sum = 1;  % 12 May 22
+
 weightMFB  = GESIparam.Sim.weightMFB; % 26 May 22 こちらに戻した。後でmeanで最終の値を求めていることと、STOIと同程度の[a,b]にするため。
 weightGCFB = SSIparam.weight;
+
+% Calculation of cosine similarity
 for nch = 1:NumCh  % == GCparam.NumCh
     for nMFB = 1:LenMFB
         ModEnvRef  = GCModEnvRef(nch,nMFB,:);
@@ -290,15 +329,38 @@ for nch = 1:NumCh  % == GCparam.NumCh
         rPwr = GESIparam.Sim.PowerRatio;   % power ratio  0<=rPwr<=1
         
         CosSim = sum(ModEnvRef.*ModEnvTest)/(PwrRef^rPwr*PwrTest^(1-rPwr));
-        dGCMFBtmc(nch,nMFB) = weightMFB(nMFB)*weightGCFB(nch)*CosSim;
+        CosSimMtrx(nch,nMFB) = CosSim;   
+                % CosSimMtrx(nch,nMFB)　= min(CosSim,1); % ほぼ同じなので、１で制限は意味ないと思う。　
+
+        % Setting weight 
+        weightMtrx(nch,nMFB) = weightGCFB(nch)*weightMFB(nMFB);
+        if GESIparam.Sim.SwWeightProhibit == 1 % 禁止領域を設けたweight
+            if GCparamRef.Fr1(nch) < MFBparam.fc(nMFB)*GESIparam.Sim.RangeWeightProhibit 
+                % Ch Freq < Modulation Freq は計算上意味がないので、無効に
+                weightMtrx(nch,nMFB) = NaN; % 無効な場合
+            end
+        end
     end
 end
-Result.dIntrm.GCMFBtmc   = dGCMFBtmc;  % Pearson Correlation Original intermediate d
-Result.d.GCMFBtmc           = mean(mean(dGCMFBtmc)); % すべての平均でMetricを求めている。note on 26 May 22
+
+% 指標の名前　dGCMFBtmc: d (GC+MFB) + temporal coefficient
+dGCMFBtmc = weightMtrx.*CosSimMtrx; % nCh * nMFB それぞれの値を保持　
+Result.dIntrm.GCMFBtmc   = dGCMFBtmc;  % Original intermediate  中間表現としての d
+Result.d.GCMFBtmc           = mean(dGCMFBtmc(~isnan(dGCMFBtmc))); % NaNでないところの平均　29 Jul 22
 Result.Pcorrect.GCMFBtmc = Metric2Pcorrect_Sigmoid(Result.d.GCMFBtmc,GESIparam.Sigmoid); %　Pcorrect仮出力
 
+% plot Result.dIntrm.GCMFBtmc 
+if GESIparam.SwPlot == 2
+    image(Result.dIntrm.GCMFBtmc*256)
+    set(gca,'YDir','normal');
+    xlabel('MFB channel')
+    ylabel('GCFB channel')
+    drawnow
+end
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% 変更の余地を残している。
+% 将来の変更に対する余地を残している。
 % 最終結果は、以下のよう出力を決めうちして、GESIという名前にしたい。
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Result.Note       = 'Result.d.GESI  == Result.d.GCMFBtmc';
@@ -315,6 +377,12 @@ end % function
 %% Trash & Memo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%
+
+% Previous implementation
+% dGCMFBtmc(nch,nMFB) = weightGCFB(nch)*weightMFB(nMFB)*CosSim; %
+
+
+
 %% History of variants.
 %  Basically they were not very successful. -- Comment out now
 %%%%%%%%%%%%%%%%%%%%%%
