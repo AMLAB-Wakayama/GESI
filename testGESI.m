@@ -2,12 +2,14 @@
 %
 %       Test code for GESI
 %       Irino, T.
-%       Created :  21 Mar 2022 IT from test_mrGEDIhl
-%       Modified:  21 Mar 2022 IT 
-%       Modified:  24 Mar 2022 IT Modified Location
-%       Modified:  12 May 2022 IT Modified GESIparam.Sigmoid  --> See  GESI.m
-%       Modified:  26 May 2022 IT Modification on 12 May 2022 was cancelled.
-%       Modified:  18 Jun  2022 IT Modified DirGCFB
+%       Created :  21 Mar 2022  IT from test_mrGEDIhl
+%       Modified:  21 Mar 2022  IT 
+%       Modified:  24 Mar 2022  IT Modified Location
+%       Modified:  12 May 2022  IT Modified GESIparam.Sigmoid  --> See  GESI.m
+%       Modified:  26 May 2022  IT Modification on 12 May 2022 was cancelled.
+%       Modified:  29 Jul  2022  IT introduced: GESIparam.SwWeightProhibit
+%       Modified:   4 Aug 2022   IT  v110  introduction of version number +  normalization of SSI weight
+%       Modified:  22 Aug 2022   IT  v120  The order of input arguments was replaced 
 %
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -25,9 +27,9 @@ DirRoot = [DirProg '/'];
 % Please download and put it at the same level of this directory.
 % https://github.com/AMLAB-Wakayama/gammachirp-filterbank/GCFBv233
 %
-DirGCFB = [DirRoot '../gammachirp-filterbank/GCFBv233/'];  % normal install 
-%DirGCFB = [DirRoot '../GCFBv233/'];  % local use only
-% exist(DirGCFB)   % for check directory
+%DirGCFB = [DirRoot '../GCFBv233/'];  % normal install 
+DirGCFB = [DirRoot '../../../GitHub_Public/gammachirp-filterbank/GCFBv233/'];  % local use only
+%exist(DirGCFB)   % for check directory
 addpath(DirGCFB) 
 StartupGCFB;   % startup GCFB
 
@@ -57,7 +59,13 @@ GESIparam.Sim.PowerRatio = 0.6;  % power asymmetry valid for both NH + HI listen
         %GESIparam.Sim.PowerRatio = 0.5;  % do not use: valid only for NH listeners
         %GESIparam.Sim.PowerRatio = 0.55;  % intermediate : adjustment for individual listeners
         %GESIparam.Sim.PowerRatio = 0.57;  %
+%GESIparam.Sim.PowerRatio = 0.5;  % do not use: valid only for NH listeners
 
+% controlling weight matrix introduced 29 Jul 2022
+% GESIparam.Sim.SwWeightProhibit = 0; % No prohibit region : conventional weight
+% GESIparam.Sim.SwWeightProhibit = 1; % set prohibit region (default)  -- The result changes only slightly
+
+GESIparam.SwPlot = 2; %  image(Result.dIntrm.GCMFBtmc*256)
 
 % Parameter settings for materials
 SNRList = [-6, -3, 0, 3]; %SNR between clean speech and noise
@@ -90,7 +98,7 @@ for nSnd = 1:length(SNRList)
     % Preparation of sound
     %%%%%%%%
     SwTimeAlign = 0; % Time alignment by apriori information
-    %SwTimeAlign = 1; % test for TimeAlignXcorr in GESI
+    SwTimeAlign = 1; % test for TimeAlignXcorr in GESI
     if SwTimeAlign == 0 % preparation here
         disp('-- Extraction of a speech segment in SndTest from apriori information.')
         TimeSndBefore   = 0.35;
@@ -109,7 +117,7 @@ for nSnd = 1:length(SNRList)
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %% Speech intelligibility prediction by mr-GEDI
-    [Result, GESIparam] = GESI(SndTest, SndRef, GCparam, GESIparam);
+    [Result, GESIparam] = GESI(SndRef, SndTest, GCparam, GESIparam);  % v120: SndRef, SndTest
     Pcorrects(nSnd) = Result.Pcorrect.GESI;
     Metric(nSnd) = Result.d.GESI;
 
@@ -120,11 +128,23 @@ for nSnd = 1:length(SNRList)
     end
     disp('==========================================');
 
+    figure(nSnd)
+    image(Result.dIntrm.GCMFBtmc*256);
+    set(gca,'YDir','normal');
+    xlabel('MFB channel')
+    ylabel('GCFB channel')
+    title(['Metric: ' num2str(Metric(nSnd)) ',  Pcorrect(tmp) : ' num2str(Pcorrects(nSnd))])
+    drawnow
 end
 
-disp(Pcorrects)
+disp(['Pcorrect : ' num2str(Pcorrects)])
+disp(['Metric    : ' num2str(Metric)])
+
+disp('==========================================');
+
+
 %% Plot results
-figure
+figure(nSnd+1)
 plot(SNRList,Pcorrects,'o-');
 xlim([-0.5+min(SNRList) max(SNRList)+0.5]);
 ylim([-0.5+0 100+0.5]);
