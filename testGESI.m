@@ -12,6 +12,7 @@
 %       Modified:  22 Aug 2022   IT  v120  The order of input arguments was replaced 
 %       Modified:  31 Aug 2022   IT  v121  Introduction of time-varying SSIweight 
 %       Modified:  18 Oct  2022   IT  v122  adding rng()
+%       Modified:  19 Oct  2022   IT  v122  using GCFBv234
 %
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -25,12 +26,14 @@ close all
 DirProg = fileparts(which(mfilename)); % Directory of this m-file
 DirRoot = [DirProg '/'];
 %
-% Essential package: GCFBv233 (dynamic compressive gammachirp filterbank)
+% Essential package: dynamic compressive gammachirp filterbank
+% (GCFBv233 or the later version)
 % Please download and put it at the same level of this directory.
-% https://github.com/AMLAB-Wakayama/gammachirp-filterbank/GCFBv233
+% https://github.com/AMLAB-Wakayama/gammachirp-filterbank/GCFBv234
+% 
 %
 %DirGCFB = [DirRoot '../GCFBv233/'];  % normal install 
-DirGCFB = [DirRoot '../../../GitHub_Public/gammachirp-filterbank/GCFBv233/'];  % local use only
+DirGCFB = [DirRoot '../../../GitHub_Public/gammachirp-filterbank/GCFBv234/'];  % local use only
 %exist(DirGCFB)   % for check directory
 addpath(DirGCFB)
 StartupGCFB;   % startup GCFB

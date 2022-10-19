@@ -22,6 +22,7 @@
 %                                          was replaced to (SndRef, SndTest, ... ) as the same as in stoi,estoi,& haspi
 %       Modified:  31 Aug 2022   IT  v121  Introduction of time-varying SSIweight 
 %       Modified:  15 Oct  2022   IT  v122  MFBparam.fcutEnv = 150; にもどした。影響1%程度。
+%       Modified:  19 Oct  2022   IT  v122  using GCFBv234
 %
 %
 %   Inputs:
@@ -47,7 +48,7 @@
 %           dIntrm:  Intermediate Metric 
 %           Pcorrect: percent correct of speech intelligibility calculated  from d
 %
-%   Note: GCFBv233 is required.
+%   Note: GCFBv233 or the later version is required.
 % 
 %   Note:  Result.d may fluctuate very slightly in every simulation
 %             because of the random noise floor at the output of the GCFB
@@ -217,7 +218,7 @@ SndTest =  10^(MdsAmpdB(2)/20)*SndTest;
 DirNameTest = [GESIparam.DirGCout, GESIparam.NameGCoutTest '.mat'];
 if exist(DirNameTest) == 0
     % GCFB analysis
-    [GCoutTest, ~, GCparamTest] = GCFBv233(SndTest,GCparam);  % you need GCparam
+    [GCoutTest, ~, GCparamTest] = GCFBv234(SndTest,GCparam);  % you need GCparam
     [NumCh,LenFrame] = size(GCoutTest);
     GCoutTest = EqlzGCFB2Rms1at0dB(GCoutTest, GCparam.StrFloor);  % 0dB: Abs. Thresh. level
 
@@ -258,7 +259,7 @@ DirNameRef = [GESIparam.DirGCout, GESIparam.NameGCoutRef '.mat'];
 if exist(DirNameRef) == 0
     % GCFB analysis
     GCparam.HLoss.Type = 'NH';  % overwrite
-    [GCoutRef, ~, GCparamRef] = GCFBv233(SndRef,GCparam);
+    [GCoutRef, ~, GCparamRef] = GCFBv234(SndRef,GCparam);
     [NumCh, LenFrame] = size(GCoutRef);
     GCoutRef = EqlzGCFB2Rms1at0dB(GCoutRef, GCparam.StrFloor);
     tFrame = (0:LenFrame-1)/GCparamRef.DynHPAF.fs; % Frame time in sec
