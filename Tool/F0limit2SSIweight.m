@@ -1,11 +1,12 @@
 %
 %    SSI weight function from SSI weight  --- Simplified version
 %    Toshio IRINO
-%    Created:    5 Feb 2022   from CalSSIweight 
-%    Modified:   5 Feb 2022  
+%    Created:    5 Feb 2022   from CalSSIweight
+%    Modified:   5 Feb 2022
+%    Modified:   1 Sep 2022   Add Nan or negative
 %
 %   function [SSIweight, SSIparam] = F0limit2SSIweight(SSIparam),
-%   INPUT:  SSIparam.Fr1 :  Filterbank channel frequency (== GCparam.Fr1==GCresp.Fr1) 
+%   INPUT:  SSIparam.Fr1 :  Filterbank channel frequency (== GCparam.Fr1==GCresp.Fr1)
 %               SSIparam.h_max = 5;
 %               SSIparam.F0_limit =  F0  % spectified from adaptive F0 value
 %   OUTPUT: SSIweight,  SSIparam
@@ -19,14 +20,17 @@ end
 if isfield(SSIparam,'F0_limit') == 0,  SSIparam.F0_limit = 150; end  % default
 if isfield(SSIparam,'h_max') == 0,    SSIparam.h_max = 5; end  % default
 
+
 if SSIparam.F0_limit > 0   % when F0 is possitive
     SSIparam.TI_limit = 1/SSIparam.F0_limit; % Limit of sucessive Glottal pulse
     SSIweight = min(SSIparam.Fr1*SSIparam.TI_limit, SSIparam.h_max)/SSIparam.h_max;
-elseif SSIparam.F0_limit == 0  % when F0 == 0 
+elseif SSIparam.F0_limit == 0  % when F0 == 0 % Uniform
     SSIparam.TI_limit = Inf;
     SSIweight = ones(size(SSIparam.Fr1));
+elseif isnan(SSIparam.F0_limit) == 1  % NaN
+    error('SSIparam.F0_limit should not be NaN.')
 else
-    error('SSIparam.F0_limit should be positive.')
+    error('SSIparam.F0_limit should not be negative.')
 end
 
 end

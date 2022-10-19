@@ -12,15 +12,17 @@
 %       Modified: 19 Feb 2022   IT % Tidy up 
 %       Modified:   7 Mar 2022   IT using new Eqlz2MeddisHCLevel with GESIparam.DigitalRms1SPLdB, GCFBv232
 %       Modified:   9 Mar 2022   IT GECI-> GESI precise naming:  cosine-similarity --  not Correlation
-%       Modified:  20 Mar 2022  IT introduction of GCFBv233
+%       Modified:  20 Mar 2022  IT introduction of GCFBv233 --- Interspeech2022 version
 %       Modified:  12 May 2022  IT  sum(weightMFB) == 1
 %       Modified:  26 May 2022  IT  sum(weightMFB) == 1をやめて戻した。後でmeanで最終の値を求めていることと、STOIと同程度の[a,b]にするため。
-%       Modified:   7 Jun  2022   IT  (v108)  Introduced TimeAlignXcorr　+  Taperwindow to SndRef/SndTest
-%       Modified:  29 Jul  2022   IT  (v109)  introduced GESIparam.SwWeightProhibit
+%       Modified:   7 Jun  2022  IT  (v108)  Introduced TimeAlignXcorr　+  Taperwindow to SndRef/SndTest
+%       Modified:  29 Jul  2022  IT  (v109)  introduced GESIparam.SwWeightProhibit
 %       Modified:   4 Aug 2022   IT  v110  introduction of version number +  normalization of SSI weight
 %       Modified:  22 Aug 2022   IT  v120  The order of input arguments (SndTest, SndRef, ... ) 
 %                                          was replaced to (SndRef, SndTest, ... ) as the same as in stoi,estoi,& haspi
-%
+%       Modified:  31 Aug 2022   IT  v121  Introduction of time-varying SSIweight 
+%       Modified:  15 Oct  2022   IT  v122  MFBparam.fcutEnv = 150; にもどした。影響1%程度。
+%       Modified:  19 Oct  2022   IT  v122  using GCFBv234
 %
 %
 %   Inputs:
@@ -46,7 +48,7 @@
 %           dIntrm:  Intermediate Metric 
 %           Pcorrect: percent correct of speech intelligibility calculated  from d
 %
-%   Note: GCFBv233 is required.
+%   Note: GCFBv233 or the later version is required.
 % 
 %   Note:  Result.d may fluctuate very slightly in every simulation
 %             because of the random noise floor at the output of the GCFB
@@ -57,13 +59,13 @@
 %     v120 :            [Result, GESIparam] = GESI(SndRef, SndTest, GCparam, GESIparam)
 %
 %
-function [Result, GESIparam] = GESI(SndRef, SndTest, GCparam, GESIparam)
+function [Result, GESIparam] = GESIv122(SndRef, SndTest, GCparam, GESIparam)
 
-DirProg = fileparts(which(mfilename)); % Directory of this program
+[DirProg, NameProg] = fileparts(which(mfilename)); % Directory of this program
 addpath([DirProg '/Tool/']);     % Path to Tool
 addpath([DirProg '/Tool/world-0.2.4_matlab/']);     % Path to WORLD
-Result.Name = 'GESI';
-Result.Version = 'v120';  % version number from v120
+Result.Name = NameProg;
+disp(['##### Start: ' Result.Name ' #####'])
 
 
 % making directory and data for keeping GCout
@@ -78,19 +80,25 @@ if isfield(GESIparam,'SwPlot') == 0
     GESIparam.SwPlot = 0;
 end
 
-% If the names of Ref & Test sounds, GCoutRef & GCoutTest are saved for speed up.
+StrSPLcond = ['_Rms1SPL' int2str(GESIparam.DigitalRms1SPLdB) 'dB'];
+StrHLossCond = [GCparam.HLoss.Type '_'];
+if strcmp(GCparam.HLoss.Type,'NH') == 0
+    if isfield(GCparam.HLoss,'CompressionHealth') == 0
+        error('GCparam.HLoss.CompressionHealth should be specified.')
+    end
+    StrHLossCond = [GCparam.HLoss.Type '_' int2str(GCparam.HLoss.CompressionHealth*100) '_'];
+end
+
+% GCoutRef & GCoutTest are saved for speed up.
 if isfield(GESIparam,'NameSndRef') == 1
-    % GESIparam.NameGCoutRef = ['GCout_' GESIparam.NameSndRef '_Ref' int2str(GESIparam.SPL) 'dB'];
-    GESIparam.NameGCoutRef = ['GCout_' GESIparam.NameSndRef '_Rms1SPL' int2str(GESIparam.DigitalRms1SPLdB) 'dB'];
-    % example:   **_Ref65dB : reference sound level is 65dB LAeq
+    GESIparam.NameGCoutRef = ['GCout_' StrHLossCond GESIparam.NameSndRef StrSPLcond ];
     SwSave = 1;
 else
     GESIparam.NameGCoutRef = '';
     SwSave = 0;
 end
 if isfield(GESIparam,'NameSndTest') == 1
-    % GESIparam.NameGCoutTest = ['GCout_' GESIparam.NameSndTest '_Ref' int2str(GESIparam.SPL) 'dB'];
-    GESIparam.NameGCoutTest = ['GCout_' GESIparam.NameSndTest '_Rms1SPL'  int2str(GESIparam.DigitalRms1SPLdB) 'dB'];
+    GESIparam.NameGCoutTest = ['GCout_' StrHLossCond GESIparam.NameSndTest StrSPLcond ];
     SwSave = 1;
 else
     GESIparam.NameGCoutTest = '';
@@ -120,11 +128,10 @@ else
         GESIparam.SwTimeAlign = 1;  % default: using Xcorr
     end
     if GESIparam.SwTimeAlign == 1
-        disp('GESI: Time alignment of SndTest using TimeAlignXcorr')
-        [SndTest, ParamTA] =TimeAlignXcorr(SndTest, SndRef); % Time alignment + length eqaulization
+        [SndTest, ParamTA] = TimeAlignXcorr(SndTest, SndRef); % Time alignment + length eqaulization
         GESIparam.TimeAlign = ParamTA;
     else
-        error('Not prepared yet: Another TimeAlign algorithm.')
+        error('--- Not prepared yet: Another TimeAlign algorithm. ---')
     end
     % Taper here for stable estimation
     if isfield(GESIparam,'DurTaperWindow') ==0
@@ -167,12 +174,13 @@ if isfield(GESIparam,'Sim') == 0 || isfield(GESIparam.Sim,'PowerRatio') ==0  % �
 end
 
 [~, MFBparam] = FilterModFB; % always using the default settings of MFB
-if isfield(GESIparam.Sim,'weightMFB') ==0  % 外部からコントロールできるように
+if isfield(GESIparam.Sim,'weightMFB') == 0  % 外部からコントロールできるように
     LenMFB = length(MFBparam.fc); % length of MFB fc see FilterModFB.m    
     GESIparam.Sim.weightMFB = [ones(LenMFB,1)];
     % GESIparam.Sim.weightMFB = [0; 0; 0; ones(4,1); 0; 0; 0]; % [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
+else
+    LenMFB = length(GESIparam.Sim.weightMFB); % 外部から入った場合用
 end
-
 
 if isfield(GESIparam.Sim,'SwWeightProhibit') == 0  % 外部からコントロールできるように
     GESIparam.Sim.SwWeightProhibit = 1;  % default 禁止領域設定　 introduced 29 Jul 2022
@@ -210,16 +218,20 @@ SndTest =  10^(MdsAmpdB(2)/20)*SndTest;
 DirNameTest = [GESIparam.DirGCout, GESIparam.NameGCoutTest '.mat'];
 if exist(DirNameTest) == 0
     % GCFB analysis
-    [GCoutTest, ~, GCparamTest] = GCFBv233(SndTest,GCparam);  % you need GCparam
+    [GCoutTest, ~, GCparamTest] = GCFBv234(SndTest,GCparam);  % you need GCparam
+    [NumCh,LenFrame] = size(GCoutTest);
     GCoutTest = EqlzGCFB2Rms1at0dB(GCoutTest, GCparam.StrFloor);  % 0dB: Abs. Thresh. level
-
 
     % ModFB analysis.   MFB is common in Test and Ref
     MFBparam.fs = GCparamTest.DynHPAF.fs;   
-    % MFBparam.fcutEnv = 150; %v109以前
-    MFBparam.fcutEnv =  max(MFBparam.fc);  % v110  4 Jun 2022  extended fcut of the MFB  for using 512 Hz ModFilter ：　256にする理由もない。
+   %    v110 -- v121:  MFBparam.fcutEnv =  max(MFBparam.fc);  % v110  4 Jun 2022  extended fcut of the MFB  for using 512 Hz ModFilter ：　256にする理由もない。
+    MFBparam.fcutEnv = 150; % before v109 & after v122, 15 Oct 2022
+    %  v122 TMTFを考えにいれておいた方が良い. muiti-resolution sESPM, 山克GEDIでは導入済み。
+    %   誤差は1% 程度でほとんど影響がないことを確認。rms(Metric-Metric1)/rms(Metric) = 0.0114
+    %   いままでの研究の流れから、これはいれておく。v122
     [MFBparam.bzLPF, MFBparam.apLPF] = butter(1, MFBparam.fcutEnv/(MFBparam.fs/2));
 
+    GCModEnvTest = zeros(NumCh,LenMFB,LenFrame);
     for nch = 1:GCparam.NumCh
         % frame-base processing, i.e. all positive value
         Env = filter(MFBparam.bzLPF,MFBparam.apLPF,GCoutTest(nch,:)); % LPF
@@ -227,7 +239,7 @@ if exist(DirNameTest) == 0
             disp(['> Modulation Filterbank Analysis: GCFB ch = #' int2str(nch)]);
         end
         [ModEnv, MFBparam] = FilterModFB(Env,MFBparam);
-        % Keep the output from modulation filters (NumCh, LenMFB, LenEnv)
+        % Keep the output from modulation filters (NumCh, LenMFB, LenFrame)
         GCModEnvTest(nch,:,:)  = ModEnv;
     end
 
@@ -247,38 +259,70 @@ DirNameRef = [GESIparam.DirGCout, GESIparam.NameGCoutRef '.mat'];
 if exist(DirNameRef) == 0
     % GCFB analysis
     GCparam.HLoss.Type = 'NH';  % overwrite
-    [GCoutRef, ~, GCparamRef] = GCFBv233(SndRef,GCparam);
+    [GCoutRef, ~, GCparamRef] = GCFBv234(SndRef,GCparam);
+    [NumCh, LenFrame] = size(GCoutRef);
     GCoutRef = EqlzGCFB2Rms1at0dB(GCoutRef, GCparam.StrFloor);
-    % GCoutRef = EqlzGCFB2Rms1at0dB(GCoutRef, GCparam.StrFloor)+ alpha*randn(GCparamRef.NumCh,length(GCoutRef)); % Add noise, 28 Apr, Yamamoto
+    tFrame = (0:LenFrame-1)/GCparamRef.DynHPAF.fs; % Frame time in sec
 
+    GCModEnvRef = zeros(NumCh,LenMFB,LenFrame);
     for nch = 1:GCparam.NumCh
         % frame-base processing, i.e. all positive value
         Env = filter(MFBparam.bzLPF,MFBparam.apLPF,GCoutRef(nch,:)); % LPF
-        if  length(find(nch == [1 50 100])) > 0
+        if  length(find(nch == [1 50 100])) > 0 
             disp(['> Modulation Filterbank Analysis: GCFB ch = #' int2str(nch)]);
         end
         [ModEnv, ~] = FilterModFB(Env,MFBparam);
-        % Keep the output from modulation filters (NumCh, LenMFB, LenEnv)
+        % Keep the output from modulation filters (NumCh, LenMFB, LenFrame)
         GCModEnvRef(nch,:,:)  = ModEnv;
     end
 
     % Mean Fo analysis of Ref & SSIweight using world
     HarvestRef = Harvest(SndRef,GCparam.fs); % every 5ms
+    % 次は、v121 f0をちゃんと反映させる。
+    % interp1(0:180,HarvestRef.f0,0:0.1:180)
+    % を使って、SSIweightを時点ごとで正確に反映
+    % similarityの計算の中に重みとしていれる。modulationの計算には入れない方が良いので。
+    % 子音も有声音も同じSSIweightで重み付けはやはり変。
+    F0Frame = interp1(HarvestRef.temporal_positions,HarvestRef.f0,tFrame,'linear','extrap');
     F0MeanRef =  geomean(HarvestRef.f0(HarvestRef.f0>0)); %geomean of F0
     disp(['Fo Mean of Ref sound: ' num2str(F0MeanRef,'%5.1f') ' Hz']);
+    if length(find(isnan(F0Frame))) > 0
+        error('Error in F0Frame.')
+    end
+
+    %SSIparam.SwSSIweight = 1; % v110 fixed at F0mean
+    SSIparam.SwSSIweight = 2; % v121 time-varying
     SSIparam.Fr1        = GCparamRef.Fr1;
-    SSIparam.F0_limit = F0MeanRef;
-    [SSIweight, SSIparam] = F0limit2SSIweight(SSIparam);
-    %    SSIparam.weight = SSIweight; % for keeping weight  v109 and before
-    
-    %%%  Introdued normalization of SSIweight  v110    4 Aug 2022
-    SSIparam.F0_limit_Norm = 125; % F0 for normalization
-    SSIparamNorm = SSIparam; % copy    
-    SSIparamNorm.F0_limit = SSIparam.F0_limit_Norm ; % freq for normalization
-    [SSIweightNorm] = F0limit2SSIweight(SSIparamNorm);
-    SSIparam.weight_AmpNorm = sum(SSIweightNorm)/sum(SSIweight);
-    SSIparam.weight = SSIparam.weight_AmpNorm * SSIweight;  % normalization
-    %%%%%%
+
+    if SSIparam.SwSSIweight == 1 % fixed value == この処理は、v1と同じ。
+        SSIparam.F0_limit = F0MeanRef;
+        [SSIweight, SSIparam] = F0limit2SSIweight(SSIparam);
+        SSIparam.SwSSIweight_Norm = 1; % == v110
+        if SSIparam.SwSSIweight_Norm == 1 %   == v110     % normalization
+            %  Introdued normalization of SSIweight  v110    4 Aug 2022
+            SSIparam.F0_limit_Norm = 125; % F0 for normalization
+            SSIparamNorm = SSIparam; % copy
+            SSIparamNorm.F0_limit = SSIparam.F0_limit_Norm ; % freq for normalization
+            [SSIweightNorm] = F0limit2SSIweight(SSIparamNorm);
+            SSIparam.weight_AmpNorm = sum(SSIweightNorm)/sum(SSIweight);
+            SSIweightVal = SSIparam.weight_AmpNorm * SSIweight;
+        else  % just for check
+            error('Check code -- Not in use')
+            % 125 Hzにあわせる必要あるの？？ 23 Aug 2022 --
+            SSIweightVal = SSIweight/mean(SSIweight); 
+            % 平均値 1chごとの値でnormalize　　これで十分OK
+            % --> 結局、v121ではこれと同じように全体で割る形。簡単なので。
+        end
+        SSIweightMtrx = SSIweightVal(:)*ones(1,LenFrame); % Matrix表記
+
+    elseif SSIparam.SwSSIweight == 2 % time-varying
+        for nFrame = 1:LenFrame
+            SSIparam.F0_limit = F0Frame(nFrame);
+            [SSIweight, SSIparam] = F0limit2SSIweight(SSIparam);
+            SSIweightMtrx(:,nFrame) = SSIweight/mean(SSIweight);
+        end
+    end
+    SSIparam.weight = SSIweightMtrx;
 
     if SwSave == 1
         disp(['save: ' DirNameRef ])
@@ -312,61 +356,48 @@ end
 %   素直にここで時間軸方向のcosine類似度も取ったらちょうどよかった　corrではない。
 %   chごとに計算するので、ここでSSI weightを入れられる。-- Linearな計算なので順番入れ替えもOK
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-[NumCh, LenMFB, LenEnv]  = size(GCModEnvRef);
-%%% ---> not used:  weightMFB   = GESIparam.Sim.weightMFB/sum(GESIparam.Sim.weightMFB); % sum = 1;  % 12 May 22
-
-weightMFB  = GESIparam.Sim.weightMFB; % 26 May 22 こちらに戻した。後でmeanで最終の値を求めていることと、STOIと同程度の[a,b]にするため。
-weightGCFB = SSIparam.weight;
-
 % Calculation of cosine similarity
+[NumCh, LenMFB, ~] = size(GCModEnvRef); % matからreloadする場合に必要
+
 for nch = 1:NumCh  % == GCparam.NumCh
+    weightMFB  = GESIparam.Sim.weightMFB; % 毎回initialize
     for nMFB = 1:LenMFB
-        ModEnvRef  = GCModEnvRef(nch,nMFB,:);
-        ModEnvTest = GCModEnvTest(nch,nMFB,:);
+        ModEnvRef  = squeeze(GCModEnvRef(nch,nMFB,:))';   % row vector
+        ModEnvTest = squeeze(GCModEnvTest(nch,nMFB,:))';  % row vector
+        weightGCFB = SSIparam.weight(nch,:); % time-varying Frameでの重みづけ
 
-        PwrRef   = sum(ModEnvRef.^2);      % sum power
-        PwrTest = sum(ModEnvTest.^2);      % sum power
-        rPwr = GESIparam.Sim.PowerRatio;   % power ratio  0<=rPwr<=1
+        PwrRef  = sum(ModEnvRef.^2);      % sum power
+        PwrTest = sum(ModEnvTest.^2);     % sum power
+        rPwr = GESIparam.Sim.PowerRatio;  % power ratio  0<=rPwr<=1
         
-        CosSim = sum(ModEnvRef.*ModEnvTest)/(PwrRef^rPwr*PwrTest^(1-rPwr));
-        CosSimMtrx(nch,nMFB) = CosSim;   
-                % CosSimMtrx(nch,nMFB)　= min(CosSim,1); % ほぼ同じなので、１で制限は意味ないと思う。　
+        % CosSim = sum(ModEnvRef.*ModEnvTest)/(PwrRef^rPwr*PwrTest^(1-rPwr)); % original
+        % introduced weighted sum for time-varying SSIweight   31 Aug 22
+        CosSim = sum(weightGCFB.*ModEnvRef.*ModEnvTest)/(PwrRef^rPwr*PwrTest^(1-rPwr));
 
-        % Setting weight 
-        weightMtrx(nch,nMFB) = weightGCFB(nch)*weightMFB(nMFB);
         if GESIparam.Sim.SwWeightProhibit == 1 % 禁止領域を設けたweight
             if GCparamRef.Fr1(nch) < MFBparam.fc(nMFB)*GESIparam.Sim.RangeWeightProhibit 
                 % Ch Freq < Modulation Freq は計算上意味がないので、無効に
-                weightMtrx(nch,nMFB) = NaN; % 無効な場合
+                weightMFB(nMFB) = NaN; % 無効な場合
             end
         end
+        CosSimMtrx(nch,nMFB) = weightMFB(nMFB)*CosSim;   
+
     end
 end
 
-% 指標の名前　dGCMFBtmc: d (GC+MFB) + temporal coefficient
-dGCMFBtmc = weightMtrx.*CosSimMtrx; % nCh * nMFB それぞれの値を保持　
-Result.dIntrm.GCMFBtmc   = dGCMFBtmc;  % Original intermediate  中間表現としての d
-Result.d.GCMFBtmc           = mean(dGCMFBtmc(~isnan(dGCMFBtmc))); % NaNでないところの平均　29 Jul 22
-Result.Pcorrect.GCMFBtmc = Metric2Pcorrect_Sigmoid(Result.d.GCMFBtmc,GESIparam.Sigmoid); %　Pcorrect仮出力
+% 指標の名前ややこしかったので整理
+Result.dIntrm.GESI   = CosSimMtrx;  % Original intermediate  中間表現としての d
+Result.d.GESI           = mean(CosSimMtrx(~isnan(CosSimMtrx))); % NaNでないところの平均　29 Jul 22
+Result.Pcorrect.GESI = Metric2Pcorrect_Sigmoid(Result.d.GESI,GESIparam.Sigmoid); %　Pcorrect仮出力
 
-% plot Result.dIntrm.GCMFBtmc 
+% plot Result.dIntrm.CosSimMtrx
 if GESIparam.SwPlot == 2
-    image(Result.dIntrm.GCMFBtmc*256)
+    image(Result.dIntrm.GESI*256)
     set(gca,'YDir','normal');
     xlabel('MFB channel')
     ylabel('GCFB channel')
     drawnow
 end
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% 将来の変更に対する余地を残している。
-% 最終結果は、以下のよう出力を決めうちして、GESIという名前にしたい。
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Result.Note       = 'Result.d.GESI  == Result.d.GCMFBtmc';
-Result.d.GESI    = Result.d.GCMFBtmc;
-Result.Pcorrect.GESI = Result.Pcorrect.GCMFBtmc;
-
 
 end % function
 
@@ -377,6 +408,17 @@ end % function
 %% Trash & Memo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%
+
+    % GCoutRef = EqlzGCFB2Rms1at0dB(GCoutRef, GCparam.StrFloor)+ alpha*randn(GCparamRef.NumCh,length(GCoutRef)); % Add noise, 28 Apr, Yamamoto
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% 将来の変更に対する余地を残している。
+% 最終結果は、以下のよう出力を決めうちして、GESIという名前にしたい。
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%Result.Note       = 'Result.d.GESI  == Result.d.GCMFBtmc';
+%Result.d.GESI    = Result.d.GCMFBtmc;
+%Result.Pcorrect.GESI = Result.Pcorrect.GCMFBtmc;
 
 % Previous implementation
 % dGCMFBtmc(nch,nMFB) = weightGCFB(nch)*weightMFB(nMFB)*CosSim; %
@@ -449,3 +491,17 @@ end % function
 
         % ModEnvRef  = squeeze(GCModEnvRef(nch,nMFB,:)) + 0.5*randn(LenEnv,1); % リファレンスにもnoiseをつけてみる, 2 May, YA
         % ModEnvTest = squeeze(GCModEnvTest(nch,nMFB,:)) + 0.5*randn(LenEnv,1); % Add noise, 27 Apr, YA
+
+% 15 Oct 2022   v121--> v122
+% v121 Metric
+% ==========================================
+% Pcorrect : 38.7108      56.6441      80.9039      93.2404
+% Metric    : 0.27703     0.31337     0.37219     0.43121
+% ==========================================
+% 
+% v122 Metric1
+% ==========================================
+% Pcorrect : 39.5992      56.8733      81.7984      94.1002
+% Metric    : 0.27889     0.31383     0.37514     0.43847
+% ==========================================
+

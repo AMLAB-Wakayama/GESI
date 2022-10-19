@@ -6,6 +6,8 @@
 %   Modified: 11 Feb 2022 Separating  calculation of filter coef. and filtering for speed up
 %   Modified:  4 Aug 2022  v110  introducing 512 Hz as a default
 %
+%
+%   function [OutMFB, ParamMFB] = FilterModFB(Env,ParamMFB)
 %   INPUT:
 %           Env:  The envelope to be filtered
 %           ParamMFB.fs: sampling frequency of the envelope
