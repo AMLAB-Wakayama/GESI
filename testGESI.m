@@ -10,6 +10,8 @@
 %       Modified:  29 Jul  2022  IT introduced: GESIparam.SwWeightProhibit
 %       Modified:   4 Aug 2022   IT  v110  introduction of version number +  normalization of SSI weight
 %       Modified:  22 Aug 2022   IT  v120  The order of input arguments was replaced 
+%       Modified:  31 Aug 2022   IT  v121  Introduction of time-varying SSIweight 
+%       Modified:  18 Oct  2022   IT  v122  adding rng()
 %
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -30,7 +32,7 @@ DirRoot = [DirProg '/'];
 %DirGCFB = [DirRoot '../GCFBv233/'];  % normal install 
 DirGCFB = [DirRoot '../../../GitHub_Public/gammachirp-filterbank/GCFBv233/'];  % local use only
 %exist(DirGCFB)   % for check directory
-addpath(DirGCFB) 
+addpath(DirGCFB)
 StartupGCFB;   % startup GCFB
 
 % Sounds
@@ -45,7 +47,8 @@ GCparam.NumCh  = 100;
 GCparam.fs          = 48000;
 GCparam.DynHPAF.StrPrc = 'frame';    % frame-base introduced by IT
 GCparam.HLoss.Type = 'NH';  % NH
-%GCparam.HLoss.Type = 'HL2';  % 80yr
+% GCparam.HLoss.Type = 'HL2';  % 80yr
+% GCparam.HLoss.CompressionHealth = 0.5;  % Compression health alpha
 
 
 CalibToneSPLdB = 65;
@@ -70,6 +73,8 @@ GESIparam.SwPlot = 2; %  image(Result.dIntrm.GCMFBtmc*256)
 % Parameter settings for materials
 SNRList = [-6, -3, 0, 3]; %SNR between clean speech and noise
 
+rng(12345);  % simulationでの再現性確保。GCFB出力でrandnを使っているので、同じにするため。
+
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Start simulation
 
@@ -78,21 +83,28 @@ for nSnd = 1:length(SNRList)
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %% Test signal (enhanced/Unprocessed speech); the speech intelligiblity is calculated
     % Name of wav-file (example: '*/GEDI_Software/wav_sample/sample_sp1')
-    strTest = [DirSnd 'sample_sp' num2str(nSnd)];
+    NameSndTest = ['sample_sp' num2str(nSnd)];
+    disp(['SndTest: ' NameSndTest]);
     % Read wav-file of test speech
-    [SndTest, fs] = audioread([strTest '.wav']);
-    disp(strTest);
-    
+    [SndTest, fs] = audioread([DirSnd NameSndTest '.wav']);
+
+
     %% Reference signal (Clean speech)
     % Name of wav-file
-    strRef = [DirSnd 'sample_sp_clean'];
+    NameSndRef = 'sample_sp_clean';
+    disp(['SndRef : ' NameSndRef]);
     % Read wav-file of clean speech
-    [SndRef, fs2] = audioread([strRef '.wav']);
-    disp(strRef);
+    [SndRef, fs2] = audioread([DirSnd NameSndRef '.wav']);
+
     if fs ~= fs2  %  IT 
         error('Inconsistency of sampling rate.');
     end
     GESIparam.fsSnd = fs;
+
+    % GCout mat file will be kept when the name is specified.
+    % These files will be used when GESI is executed again for fast processing.
+    % GESIparam.NameSndRef  = NameSndRef;
+    % GESIparam.NameSndTest = NameSndTest;
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Preparation of sound
@@ -116,25 +128,43 @@ for nSnd = 1:length(SNRList)
     end
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %% Speech intelligibility prediction by mr-GEDI
-    [Result, GESIparam] = GESI(SndRef, SndTest, GCparam, GESIparam);  % v120: SndRef, SndTest
-    Pcorrects(nSnd) = Result.Pcorrect.GESI;
-    Metric(nSnd) = Result.d.GESI;
+    %% Speech intelligibility prediction by GESI
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % [Result, GESIparam] = GESIv120(SndRef, SndTest, GCparam, GESIparam);  % v120: SndRef, SndTest
+    % [Result, GESIparam] = GESIv121(SndRef, SndTest, GCparam, GESIparam);  % v121
+    [Result, GESIparam] = GESIv122(SndRef, SndTest, GCparam, GESIparam);  % v122
+    Metric(nSnd)    = Result.d.GESI;
+    Pcorrects(nSnd) = Result.Pcorrect.GESI; % temporal value. It should be changed by the sigmoid parameters.
 
     disp('==========================================');
-    disp(['Percent correct:' num2str(Pcorrects(nSnd)) '(%)']);
+    disp(['Percent correct (temporally):' num2str(Pcorrects(nSnd)) '(%)']);
     if GESIparam.SwTimeAlign> 0
         disp(sprintf('TimeAlign : %d',GESIparam.TimeAlign.NumTimeLag))
     end
     disp('==========================================');
 
+    %%%%%%%%%%%%%%%%%%%
+    % plot figures
+    %%%%%%%%%%%%%%%%%%%    
     figure(nSnd)
-    image(Result.dIntrm.GCMFBtmc*256);
+    subplot(1,2,1)
+    image(Result.dIntrm.GESI*256);
     set(gca,'YDir','normal');
     xlabel('MFB channel')
     ylabel('GCFB channel')
-    title(['Metric: ' num2str(Metric(nSnd)) ',  Pcorrect(tmp) : ' num2str(Pcorrects(nSnd))])
+    title(['Metric: ' num2str(Metric(nSnd),'%5.3f') ...
+        ',  Pcorrect(tmp) : ' num2str(Pcorrects(nSnd),'%4.1f')])
     drawnow
+
+    subplot(1,2,2)
+    image(GESIparam.SSIparam.weight*256*0.8);
+    set(gca,'YDir','normal');
+    xlabel('Frame')
+    ylabel('GCFB channel')
+    title(['SSIweight'])
+    drawnow
+
+
 end
 
 disp(['Pcorrect : ' num2str(Pcorrects)])

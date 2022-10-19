@@ -5,10 +5,8 @@
 %% README file for Gammachirp Envelope Similarity Index (GESI) 
 %% Copyright (c) 2022-  Wakayama University  
 %% All rights reserved.  
-%% By Toshio Irino.  
-%%  v100 18-Jun-2022      
-%%  v120 22 Aug 2022   
-%%   
+%% By Toshio Irino , 18-Jun-2022  
+%%  
 %% ======================================================================  
   
 See ref [1] for the detail of GESI  
