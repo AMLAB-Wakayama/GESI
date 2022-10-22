@@ -90,6 +90,28 @@ if strcmp(GCparam.HLoss.Type,'NH') == 0
     StrHLossCond = [GCparam.HLoss.Type '_' int2str(GCparam.HLoss.CompressionHealth*100) '_'];
 end
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Parameters of GCFB & GESI
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Default parameters of dcGC filterbank 
+if isfield(GCparam,'fs')  == 0,         GCparam.fs = 48000; end %
+    % Recommended to use fs = 48000 Hz independent of fs of Snd
+if isfield(GCparam,'NumCh')  == 0, GCparam.NumCh = 100; end
+if isfield(GCparam,'FRange')  == 0, GCparam.FRange = [100, 8000]; end % covering audiogram
+if isfield(GCparam,'OutMidCrct')  == 0,  GCparam.OutMidCrct = 'FreeField'; end % default FreeField  not ELC
+if isfield(GCparam, 'HLoss') == 0,   GCparam.HLoss.Type = 'NH';  end  % NH or HL
+GCparam.Ctrl = 'dynamic';  % mandatory
+GCparam.DynHPAF.StrPrc = 'frame-base'; % mandatory
+GCparam.StrFloor = 'NoiseFloor';
+
+%%% GESI
+if isfield(GESIparam,'fs') == 0
+    warning(['GESIparam.fs was not specified.']);
+    disp(['Do you use fs = ' num2str(GCparam.fs) 'Hz ?  [Return to yes] > ']);
+    pause;
+    GESIparam.fs = GCparam.fs;
+end
+
 % GCoutRef & GCoutTest are saved for speed up.
 if isfield(GESIparam,'NameSndRef') == 1
     GESIparam.NameGCoutRef = ['GCout_' StrHLossCond GESIparam.NameSndRef StrSPLcond ];
@@ -145,23 +167,10 @@ else
 end
 
 
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Analysis of GESI
-%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Default parameters of dcGC filterbank
-if isfield(GCparam,'fs')  == 0,         GCparam.fs = 48000; end
-if isfield(GCparam,'NumCh')  == 0, GCparam.NumCh = 100; end
-if isfield(GCparam,'FRange')  == 0, GCparam.FRange = [100, 8000]; end % covering audiogram
-if isfield(GCparam,'OutMidCrct')  == 0,  GCparam.OutMidCrct = 'FreeField'; end % default FreeField  not ELC
-if isfield(GCparam, 'HLoss') == 0,   GCparam.HLoss.Type = 'NH';  end  % NH or HL
-GCparam.Ctrl = 'dynamic';  % mandatory
-GCparam.DynHPAF.StrPrc = 'frame-base'; % mandatory
-GCparam.StrFloor = 'NoiseFloor';
-
 %%%%%%%%%%%%%%%%%%%%%%
-% Parameters of GESI anaysis 
+% GESI params
 %%%%%%%%%%%%%%%%%%%%%%
+
 if isfield(GESIparam,'Sim') == 0 || isfield(GESIparam.Sim,'PowerRatio') ==0  % 外部からコントロールできるように
     GESIparam.Sim.PowerRatio = 0.6; % 6:4
     disp('GESIparam.Sim.PowerRatio is set to 0.6 (default) -- OK? Return to continue > ')
@@ -194,9 +203,10 @@ end
 
 %%%%%%%%%%%%%%%%%%
 % sound  sampling rate conversion & normalization
+% GCFBparam.fs may be always 48000 Hz.
 % GESIparam.fs : sampling frequency of ref/test sounds
 %
-if GCparam.fs > GESIparam.fs    % Upsampling to 48 kHz
+if GCparam.fs ~= GESIparam.fs    % Resampling to 48 kHz 
     SndTest = resample(SndTest(:)',GCparam.fs,GESIparam.fs);
     SndRef  = resample(SndRef(:)',GCparam.fs,GESIparam.fs);
 end

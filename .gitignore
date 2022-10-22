@@ -1,0 +1,15 @@
+.DS_Store
+Thumbs.db
+*.docx
+*.m~
+
+# MATLAB
+*.asv
+Tool/*.asv
+
+# Local
+_Local/
+Previous/
+previous/
+
+
