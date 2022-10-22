@@ -13,7 +13,7 @@
 %       Modified:  31 Aug 2022   IT  v121  Introduction of time-varying SSIweight 
 %       Modified:  18 Oct  2022   IT  v122  adding rng()
 %       Modified:  19 Oct  2022   IT  v122  using GCFBv234
-%
+%       Modified:  22 Oct  2022   IT  deug  GESIparam.fs <-- GESIparam.fsSnd
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -33,7 +33,8 @@ DirRoot = [DirProg '/'];
 % 
 %
 %DirGCFB = [DirRoot '../GCFBv233/'];  % normal install 
-DirGCFB = [DirRoot '../../../GitHub_Public/gammachirp-filterbank/GCFBv234/'];  % local use only
+% DirGCFB = [DirRoot '../../../GitHub_Public/gammachirp-filterbank/GCFBv234/'];  % local use only
+DirGCFB = [DirRoot '../gammachirp-filterbank/GCFBv234/']; 
 %exist(DirGCFB)   % for check directory
 addpath(DirGCFB)
 StartupGCFB;   % startup GCFB
