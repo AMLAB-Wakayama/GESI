@@ -23,6 +23,7 @@
 %       Modified:  31 Aug 2022   IT  v121  Introduction of time-varying SSIweight 
 %       Modified:  15 Oct  2022   IT  v122  MFBparam.fcutEnv = 150; にもどした。影響1%程度。
 %       Modified:  19 Oct  2022   IT  v122  using GCFBv234
+%       Modified:  22 Oct  2022   IT  deug  GESIparam.fs <--  GESIparam.fsSnd
 %
 %
 %   Inputs:
@@ -137,7 +138,7 @@ else
     if isfield(GESIparam,'DurTaperWindow') ==0
         GESIparam.DurTaperWindow = 0.02; % 20ms taper window
     end
-    LenTaper = GESIparam.DurTaperWindow *GESIparam.fsSnd;
+    LenTaper = GESIparam.DurTaperWindow *GESIparam.fs;
     Win = TaperWindow(length(SndRef),'han',LenTaper);
     SndRef   = SndRef .* Win;  % row vector
     SndTest  = SndTest .* Win;
@@ -193,11 +194,11 @@ end
 
 %%%%%%%%%%%%%%%%%%
 % sound  sampling rate conversion & normalization
-% GESIparam.fsSnd : sampling frequency of ref/test sounds
+% GESIparam.fs : sampling frequency of ref/test sounds
 %
-if GCparam.fs > GESIparam.fsSnd    % Upsampling to 48 kHz
-    SndTest = resample(SndTest(:)',GCparam.fs,GESIparam.fsSnd);
-    SndRef  = resample(SndRef(:)',GCparam.fs,GESIparam.fsSnd);
+if GCparam.fs > GESIparam.fs    % Upsampling to 48 kHz
+    SndTest = resample(SndTest(:)',GCparam.fs,GESIparam.fs);
+    SndRef  = resample(SndRef(:)',GCparam.fs,GESIparam.fs);
 end
 
 % Calibrate input level of SndRef by using Meddis hair cell level for GCFB
