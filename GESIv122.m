@@ -140,16 +140,18 @@ end
 SndRef   = SndRef(:)';  % row vector for GCFB
 SndTest = SndTest(:)';
 
+
 % Time alignment  7 Jun 22
-if  length(SndTest) == length(SndRef)
+
+if  length(SndTest) == length(SndRef) && isfield(GESIparam,'SwTimeAlign') == 0
     disp('GESI: No time alignment:  length(SndRef) == length(SndTest)')
     GESIparam.SwTimeAlign = 0; % No alignment
     % SndTest&SndRef are assumed to be prepared properly (e.g. using TaperWindow)
-
 else
     if isfield(GESIparam,'SwTimeAlign') == 0 % controlable from main
         GESIparam.SwTimeAlign = 1;  % default: using Xcorr
     end
+
     if GESIparam.SwTimeAlign == 1
         [SndTest, ParamTA] = TimeAlignXcorr(SndTest, SndRef); % Time alignment + length eqaulization
         GESIparam.TimeAlign = ParamTA;

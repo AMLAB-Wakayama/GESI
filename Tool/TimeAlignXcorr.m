@@ -2,8 +2,10 @@
 %
 %       Time alighment of Test sound for GESI
 %       Irino, T.
-%       Created:   6 Jun  2022   IT  from mrGEDI GEDI_TimeAlign
-%       Modified:   6 Jun  2022   IT 
+%       Created:     6 Jun  2022   IT  from mrGEDI GEDI_TimeAlign
+%       Modified:    6 Jun  2022   IT 
+%       Modified:  12 Jun  2022   IT 
+%       Modified:  22 Oct  2022   IT % negative alignment
 %
 %
 %       Alignment of signals using cross-correlation
@@ -27,14 +29,19 @@ LenSnd = length(SndRefIn);
 NumTimeLag = Lag(IndxMaxLag);
 
 if NumTimeLag >= 0
-    SndTestOut = SndTestIn(NumTimeLag + (1:LenSnd));
+    SndTest1  = [SndTestIn, zeros(1,NumTimeLag)]; % zero padding
+    SndTestOut = SndTest1(NumTimeLag + (1:LenSnd));
 else
-    error('Something strange: Negative lag. Set SndTest & SndRef properly')
+    SndTest1 = [zeros(1,abs(NumTimeLag)), SndTestIn];
+    SndTestOut = SndTest1(1:LenSnd);
+    %error('Something strange: Negative lag. Set SndTest & SndRef properly')
 end
 
 ParamTA.XcorrSnd = XcorrSnd;
 ParamTA.Lag = Lag;
 ParamTA.IndxMaxLag  = IndxMaxLag;
 ParamTA.NumTimeLag = NumTimeLag;
+
+disp(['Time Lag in sample point = ' num2str(NumTimeLag)]);
 
 end 
