@@ -295,6 +295,7 @@ if exist(DirNameRef) == 0
     % similarityの計算の中に重みとしていれる。modulationの計算には入れない方が良いので。
     % 子音も有声音も同じSSIweightで重み付けはやはり変。
     F0Frame = interp1(HarvestRef.temporal_positions,HarvestRef.f0,tFrame,'linear','extrap');
+    F0Frame = max(F0Frame,0); % to avoid negative F0Frame by using interp1 22 Oct 22
     F0MeanRef =  geomean(HarvestRef.f0(HarvestRef.f0>0)); %geomean of F0
     disp(['Fo Mean of Ref sound: ' num2str(F0MeanRef,'%5.1f') ' Hz']);
     if length(find(isnan(F0Frame))) > 0
