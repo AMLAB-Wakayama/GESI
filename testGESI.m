@@ -60,6 +60,7 @@ CalibToneRMSDigitalLeveldB = -26;
 DigitalRms1SPLdB = CalibToneSPLdB - CalibToneRMSDigitalLeveldB;
 
 %% Parameter settings for GESI
+
 GESIparam.DigitalRms1SPLdB = DigitalRms1SPLdB;
 GESIparam.Sigmoid = [-20, 6]; % temporal value which should be modified --- 26 May 22
 GESIparam.Sim.PowerRatio = 0.6;  % power asymmetry valid for both NH + HI listeners
@@ -91,7 +92,7 @@ for nSnd = 1:length(SNRList)
     disp(['SndTest: ' NameSndTest]);
     % Read wav-file of test speech
     [SndTest, fs] = audioread([DirSnd NameSndTest '.wav']);
-
+    GESIparam.fs = fs;
 
     %% Reference signal (Clean speech)
     % Name of wav-file
@@ -99,12 +100,10 @@ for nSnd = 1:length(SNRList)
     disp(['SndRef : ' NameSndRef]);
     % Read wav-file of clean speech
     [SndRef, fs2] = audioread([DirSnd NameSndRef '.wav']);
-
     if fs ~= fs2  %  IT 
         error('Inconsistency of sampling rate.');
     end
-    GESIparam.fsSnd = fs;
-
+    
     % GCout mat file will be kept when the name is specified.
     % These files will be used when GESI is executed again for fast processing.
     % GESIparam.NameSndRef  = NameSndRef;
@@ -123,7 +122,7 @@ for nSnd = 1:length(SNRList)
 
         % Taper window
         GESIparam.DurTaperWindow = 0.02; % 20ms taper window
-        LenTaper = GESIparam.DurTaperWindow *GESIparam.fsSnd;
+        LenTaper = GESIparam.DurTaperWindow *GESIparam.fs;
         Win = TaperWindow(length(SndRef),'han',LenTaper);
         SndRef   = SndRef(:).* Win(:);  % column vector
         SndTest  = SndTest(:).* Win(:);
