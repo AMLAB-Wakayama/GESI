@@ -1,12 +1,12 @@
 # GESI   (Gammachirp Envelope Similarity Index)  
 
 %% ======================================================================  
-%%  
-%% README file for Gammachirp Envelope Similarity Index (GESI) 
+%%    
+%% README file for Gammachirp Envelope Similarity Index (GESI)  
 %% Copyright (c) 2022-  Wakayama University  
 %% All rights reserved.  
-%% By Toshio Irino , 19-Oct-2022
-%%  
+%% By Toshio Irino , 19-Oct-2022  
+%%    
 %% ======================================================================  
   
 See ref [1] for the detail of GESI  
