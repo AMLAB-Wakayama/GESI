@@ -2,7 +2,7 @@
 %
 %       Gammachirp Envelope Similarity Index (GESI)
 %       Objective mesure index for speech intelligibility including hearing loss
-%       Irino, T.
+%       Irino, T., Yamamoto, A.
 %       Created : 30 Jan 2022   IT, New 1st version
 %       Modified: 30 Jan 2022   IT  (v100)
 %       Modified:   2 Feb 2022   IT
@@ -24,6 +24,9 @@
 %       Modified:  15 Oct  2022   IT  v122  MFBparam.fcutEnv = 150; にもどした。影響1%程度。
 %       Modified:  19 Oct  2022   IT  v122  using GCFBv234
 %       Modified:  22 Oct  2022   IT  deug  GESIparam.fs <--  GESIparam.fsSnd
+%       Modified:  23 Oct  2022  YA, 複数のrhoを一度に計算  -- OK IT 12 Nov 22
+%       Modified:  12 Nov 2022   IT  v123  version up. Tidy up. Renamed  from GESIv122_rPwrMulti.m (YA)
+%       Modified:  18 May 2023   IT  v123  adding some comments
 %
 %
 %   Inputs:
@@ -60,7 +63,7 @@
 %     v120 :            [Result, GESIparam] = GESI(SndRef, SndTest, GCparam, GESIparam)
 %
 %
-function [Result, GESIparam] = GESIv122(SndRef, SndTest, GCparam, GESIparam)
+function [Result, GESIparam] = GESIv123(SndRef, SndTest, GCparam, GESIparam)
 
 [DirProg, NameProg] = fileparts(which(mfilename)); % Directory of this program
 addpath([DirProg '/Tool/']);     % Path to Tool
@@ -94,7 +97,7 @@ end
 % Parameters of GCFB & GESI
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 % Default parameters of dcGC filterbank 
-if isfield(GCparam,'fs')  == 0,         GCparam.fs = 48000; end %
+if isfield(GCparam,'fs')  == 0,         GCparam.fs = 48000; end % GCFB should always work at 48kHz
     % Recommended to use fs = 48000 Hz independent of fs of Snd
 if isfield(GCparam,'NumCh')  == 0, GCparam.NumCh = 100; end
 if isfield(GCparam,'FRange')  == 0, GCparam.FRange = [100, 8000]; end % covering audiogram
@@ -373,36 +376,44 @@ end
 % Calculation of cosine similarity
 [NumCh, LenMFB, ~] = size(GCModEnvRef); % matからreloadする場合に必要
 
-for nch = 1:NumCh  % == GCparam.NumCh
-    weightMFB  = GESIparam.Sim.weightMFB; % 毎回initialize
-    for nMFB = 1:LenMFB
-        ModEnvRef  = squeeze(GCModEnvRef(nch,nMFB,:))';   % row vector
-        ModEnvTest = squeeze(GCModEnvTest(nch,nMFB,:))';  % row vector
-        weightGCFB = SSIparam.weight(nch,:); % time-varying Frameでの重みづけ
-
-        PwrRef  = sum(ModEnvRef.^2);      % sum power
-        PwrTest = sum(ModEnvTest.^2);     % sum power
-        rPwr = GESIparam.Sim.PowerRatio;  % power ratio  0<=rPwr<=1
-        
-        % CosSim = sum(ModEnvRef.*ModEnvTest)/(PwrRef^rPwr*PwrTest^(1-rPwr)); % original
-        % introduced weighted sum for time-varying SSIweight   31 Aug 22
-        CosSim = sum(weightGCFB.*ModEnvRef.*ModEnvTest)/(PwrRef^rPwr*PwrTest^(1-rPwr));
-
-        if GESIparam.Sim.SwWeightProhibit == 1 % 禁止領域を設けたweight
-            if GCparamRef.Fr1(nch) < MFBparam.fc(nMFB)*GESIparam.Sim.RangeWeightProhibit 
-                % Ch Freq < Modulation Freq は計算上意味がないので、無効に
-                weightMFB(nMFB) = NaN; % 無効な場合
+% -------------------------------
+%%% 以下、大規模simulationのため編集
+% -------------------------------
+for nrPwr = 1:length(GESIparam.Sim.PowerRatio)
+    for nch = 1:NumCh  % == GCparam.NumCh
+        weightMFB  = GESIparam.Sim.weightMFB; % 毎回initialize
+        for nMFB = 1:LenMFB
+            ModEnvRef  = squeeze(GCModEnvRef(nch,nMFB,:))';   % row vector
+            ModEnvTest = squeeze(GCModEnvTest(nch,nMFB,:))';  % row vector
+            weightGCFB = SSIparam.weight(nch,:); % time-varying Frameでの重みづけ
+    
+            PwrRef  = sum(ModEnvRef.^2);      % sum power
+            PwrTest = sum(ModEnvTest.^2);     % sum power
+            % rPwr = GESIparam.Sim.PowerRatio;  % power ratio  0<=rPwr<=1
+            rPwr = GESIparam.Sim.PowerRatio(nrPwr); % 追加, YA, 23 Oct 22
+            
+            % CosSim = sum(ModEnvRef.*ModEnvTest)/(PwrRef^rPwr*PwrTest^(1-rPwr)); % original
+            % introduced weighted sum for time-varying SSIweight   31 Aug 22
+            CosSim = sum(weightGCFB.*ModEnvRef.*ModEnvTest)/(PwrRef^rPwr*PwrTest^(1-rPwr));
+    
+            if GESIparam.Sim.SwWeightProhibit == 1 % 禁止領域を設けたweight
+                if GCparamRef.Fr1(nch) < MFBparam.fc(nMFB)*GESIparam.Sim.RangeWeightProhibit 
+                    % Ch Freq < Modulation Freq は計算上意味がないので、無効に
+                    weightMFB(nMFB) = NaN; % 無効な場合
+                end
             end
+            CosSimMtrx(nch,nMFB) = weightMFB(nMFB)*CosSim;   
+    
         end
-        CosSimMtrx(nch,nMFB) = weightMFB(nMFB)*CosSim;   
-
     end
+    
+    % 指標の名前ややこしかったので整理
+    Result.dIntrm.GESI(:,:,nrPwr) = CosSimMtrx;  % Original intermediate  中間表現としての d
+    Result.d.GESI(:,nrPwr)        = mean(CosSimMtrx(~isnan(CosSimMtrx))); % NaNでないところの平均　29 Jul 22
+    Result.Pcorrect.GESI(:,nrPwr) = Metric2Pcorrect_Sigmoid(Result.d.GESI(:,nrPwr),GESIparam.Sigmoid); %　Pcorrect仮出力
 end
+% -------------------------------
 
-% 指標の名前ややこしかったので整理
-Result.dIntrm.GESI   = CosSimMtrx;  % Original intermediate  中間表現としての d
-Result.d.GESI           = mean(CosSimMtrx(~isnan(CosSimMtrx))); % NaNでないところの平均　29 Jul 22
-Result.Pcorrect.GESI = Metric2Pcorrect_Sigmoid(Result.d.GESI,GESIparam.Sigmoid); %　Pcorrect仮出力
 
 % plot Result.dIntrm.CosSimMtrx
 if GESIparam.SwPlot == 2
@@ -414,8 +425,6 @@ if GESIparam.SwPlot == 2
 end
 
 end % function
-
-
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -518,4 +527,6 @@ end % function
 % Pcorrect : 39.5992      56.8733      81.7984      94.1002
 % Metric    : 0.27889     0.31383     0.37514     0.43847
 % ==========================================
+
+
 
