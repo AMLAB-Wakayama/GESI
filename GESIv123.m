@@ -26,7 +26,7 @@
 %       Modified:  22 Oct  2022   IT  deug  GESIparam.fs <--  GESIparam.fsSnd
 %       Modified:  23 Oct  2022  YA, 複数のrhoを一度に計算  -- OK IT 12 Nov 22
 %       Modified:  12 Nov 2022   IT  v123  version up. Tidy up. Renamed  from GESIv122_rPwrMulti.m (YA)
-%       Modified:  18 May 2023   IT  v123  adding some comments
+%       Modified:  18 May 2023   IT  v123  adding some comments + if  GESIparam.SwTimeAlign ==0 
 %
 %
 %   Inputs:
@@ -155,7 +155,7 @@ else
         GESIparam.SwTimeAlign = 1;  % default: using Xcorr
     end
 
-    if GESIparam.SwTimeAlign == 1
+   if GESIparam.SwTimeAlign == 1
         [SndTest, ParamTA] = TimeAlignXcorr(SndTest, SndRef); % Time alignment + length eqaulization
         GESIparam.TimeAlign = ParamTA;
     else
@@ -234,6 +234,7 @@ SndTest =  10^(MdsAmpdB(2)/20)*SndTest;
 DirNameTest = [GESIparam.DirGCout, GESIparam.NameGCoutTest '.mat'];
 if exist(DirNameTest) == 0
     % GCFB analysis
+    disp('==== GCFB calculation of SndTest (HL or NH) ====')
     [GCoutTest, ~, GCparamTest] = GCFBv234(SndTest,GCparam);  % you need GCparam
     [NumCh,LenFrame] = size(GCoutTest);
     GCoutTest = EqlzGCFB2Rms1at0dB(GCoutTest, GCparam.StrFloor);  % 0dB: Abs. Thresh. level
@@ -274,6 +275,7 @@ end
 DirNameRef = [GESIparam.DirGCout, GESIparam.NameGCoutRef '.mat'];
 if exist(DirNameRef) == 0
     % GCFB analysis
+    disp('==== GCFB calculation of SndRef (always NH) ====')
     GCparam.HLoss.Type = 'NH';  % overwrite
     [GCoutRef, ~, GCparamRef] = GCFBv234(SndRef,GCparam);
     [NumCh, LenFrame] = size(GCoutRef);
