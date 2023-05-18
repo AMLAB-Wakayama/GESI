@@ -13,7 +13,9 @@
 %       Modified:  31 Aug 2022   IT  v121  Introduction of time-varying SSIweight 
 %       Modified:  18 Oct  2022   IT  v122  adding rng()
 %       Modified:  19 Oct  2022   IT  v122  using GCFBv234
-%       Modified:  22 Oct  2022   IT  deug  GESIparam.fs <-- GESIparam.fsSnd
+%       Modified:  12 Nov 2022   IT  v123  version up. Tidy up. Renamed  from GESIv122_rPwrMulti.m (YA)
+%       Modified:  18 May 2023   IT  v123  adding some comments
+%
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -33,8 +35,7 @@ DirRoot = [DirProg '/'];
 % 
 %
 %DirGCFB = [DirRoot '../GCFBv233/'];  % normal install 
-% DirGCFB = [DirRoot '../../../GitHub_Public/gammachirp-filterbank/GCFBv234/'];  % local use only
-DirGCFB = [DirRoot '../gammachirp-filterbank/GCFBv234/']; 
+DirGCFB = [DirRoot '../../../GitHub_Public/gammachirp-filterbank/GCFBv234/'];  % local use only
 %exist(DirGCFB)   % for check directory
 addpath(DirGCFB)
 StartupGCFB;   % startup GCFB
@@ -60,7 +61,6 @@ CalibToneRMSDigitalLeveldB = -26;
 DigitalRms1SPLdB = CalibToneSPLdB - CalibToneRMSDigitalLeveldB;
 
 %% Parameter settings for GESI
-
 GESIparam.DigitalRms1SPLdB = DigitalRms1SPLdB;
 GESIparam.Sigmoid = [-20, 6]; % temporal value which should be modified --- 26 May 22
 GESIparam.Sim.PowerRatio = 0.6;  % power asymmetry valid for both NH + HI listeners
@@ -92,7 +92,7 @@ for nSnd = 1:length(SNRList)
     disp(['SndTest: ' NameSndTest]);
     % Read wav-file of test speech
     [SndTest, fs] = audioread([DirSnd NameSndTest '.wav']);
-    GESIparam.fs = fs;
+
 
     %% Reference signal (Clean speech)
     % Name of wav-file
@@ -100,10 +100,12 @@ for nSnd = 1:length(SNRList)
     disp(['SndRef : ' NameSndRef]);
     % Read wav-file of clean speech
     [SndRef, fs2] = audioread([DirSnd NameSndRef '.wav']);
+
     if fs ~= fs2  %  IT 
         error('Inconsistency of sampling rate.');
     end
-    
+    GESIparam.fs = fs;   % Samping rate of sounds.   % NG:  GESIparam.fsSnd = fs;
+
     % GCout mat file will be kept when the name is specified.
     % These files will be used when GESI is executed again for fast processing.
     % GESIparam.NameSndRef  = NameSndRef;
@@ -135,8 +137,9 @@ for nSnd = 1:length(SNRList)
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % [Result, GESIparam] = GESIv120(SndRef, SndTest, GCparam, GESIparam);  % v120: SndRef, SndTest
     % [Result, GESIparam] = GESIv121(SndRef, SndTest, GCparam, GESIparam);  % v121
-    [Result, GESIparam] = GESIv122(SndRef, SndTest, GCparam, GESIparam);  % v122
-    Metric(nSnd)    = Result.d.GESI;
+    % [Result, GESIparam] = GESIv122(SndRef, SndTest, GCparam, GESIparam);  % v122
+    [Result, GESIparam] = GESIv123(SndRef, SndTest, GCparam, GESIparam);  % v123
+    Metric(nSnd)     = Result.d.GESI;
     Pcorrects(nSnd) = Result.Pcorrect.GESI; % temporal value. It should be changed by the sigmoid parameters.
 
     disp('==========================================');
