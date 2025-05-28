@@ -5,22 +5,19 @@
 %   Modified: 07 Feb 2022
 %   Modified: 11 Feb 2022 Separating  calculation of filter coef. and filtering for speed up
 %   Modified:  4 Aug 2022  v110  introducing 512 Hz as a default
-%   Modified:  3 Jan  2024  corresponding to GESIv130
-%   Modified: 18 Nov 2024  introducing MFBparam.MaxFc,  renamed ParamMFB --> MFBpram.  
-%   Modified:  7 Dec 2024  introducing MFBparam.MinFc
 %
 %
-%   function [OutMFB, MFBparam] = FilterModFB(Env,MFBparam)
+%   function [OutMFB, ParamMFB] = FilterModFB(Env,ParamMFB)
 %   INPUT:
 %           Env:  The envelope to be filtered
-%           MFBparam.fs: sampling frequency of the envelope
-%           MFBparam.fc: center frequencies of the modulation filters 
+%           ParamMFB.fs: sampling frequency of the envelope
+%           ParamMFB.fc: center frequencies of the modulation filters 
 %                                 default: [1 2 4 8 16 32 64 128 256]; --> [1 2 4 8 16 32 64 128 256 512]; 
-%           MFBparam.SwPlot:  Plot frequency response of MFB
+%           ParamMFB.SwPlot:  Plot frequency response of MFB
 %
 %   OUTPUT:
 %           OutMFB:  Temporal outputs for each of the modulation filters
-%           MFBparam: Parameter
+%           ParamMFB: Parameter
 %
 %  See:
 %  function x_filt = modFbank_YK_v2(Env,fsEnv,cf_mod) in mrGEDI
@@ -28,34 +25,27 @@
 %
 %
 %
-function [OutMFB, MFBparam] = FilterModFB(Env,MFBparam)
+function [OutMFB, ParamMFB] = FilterModFB(Env,ParamMFB)
 persistent MFcoefIIR
 
-MFBparam.fc_default =[1, 2, 4, 8, 16, 32, 64, 128, 256, 512]; % v110 4 Aug 2022
+ParamMFB.fc_default =[1, 2, 4, 8, 16, 32, 64, 128, 256, 512]; % v110 4 Aug 202
 
-if isfield(MFBparam,'MaxFc') == 0, MFBparam.MaxFc = MFBparam.fc_default(end); end % 18 Nov 2024
-if isfield(MFBparam,'MinFc') == 0,  MFBparam.MinFc = MFBparam.fc_default(1); end % 7 Dec 2024
-if MFBparam.MinFc > MFBparam.MaxFc 
-    error('MFBparam.MinFc should be less than MFBparam.MaxFc.')
-end
-
-NumFc = find(MFBparam.fc_default >= MFBparam.MinFc & MFBparam.fc_default <= MFBparam.MaxFc);
-MFBparam.fc = MFBparam.fc_default(NumFc); 
-
-if length(Env) < 1  % when no Env input -- Just return information
+if nargin < 1, 
+    % help(mfilename); 
     OutMFB = [];  
+    ParamMFB.fc = ParamMFB.fc_default; % just reply the default setting
     return; 
 end
+if isfield(ParamMFB,'fs') ==0,  error('Specify ParamMFB.fs'); end
+% if isfield(ParamMFB,'fc') ==0,  ParamMFB.fc =[1 2 4 8 16 32 64 128 256]; end
+if isfield(ParamMFB,'fc') ==0,  ParamMFB.fc =ParamMFB.fc_default; end % v110 4 Aug 2022
+if isfield(ParamMFB,'SwPlot') ==0, ParamMFB.SwPlot = 0; end
 
-% Making filter
-if isfield(MFBparam,'fs') ==0,  error('Specify MFBparam.fs'); end
-if isfield(MFBparam,'SwPlot') ==0, MFBparam.SwPlot = 0; end
-
-LenFc = length(MFBparam.fc);
-if isfield(MFcoefIIR,'a') == 0 | size(MFcoefIIR.a,1) ~= LenFc 
-    MFcoefIIR = MkCoefModFilter(MFBparam);  % Making modulation filter
+if isfield(MFcoefIIR,'a') == 0
+    MFcoefIIR = MkCoefModFilter(ParamMFB);  % Making modulation filter
 end
 
+LenFc = length(ParamMFB.fc);
 [NumEnv, LenEnv] = size(Env);
 if NumEnv > 1
     error('Env should be a monoaural row vector.')
@@ -66,7 +56,7 @@ for nfc = 1:LenFc
     OutMFB(nfc,:) = filter(MFcoefIIR.b(nfc,:), MFcoefIIR.a(nfc,:), Env);
 end
 
-MFBparam.MFcoefIIR = MFcoefIIR;
+ParamMFB.MFcoefIIR = MFcoefIIR;
 
 end
 
@@ -77,19 +67,19 @@ end
 %  The code is the same as in modFbank_YK_v2 in mrGEDI by YamaKatsu
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function MFcoefIIR = MkCoefModFilter(MFBparam)
+function MFcoefIIR = MkCoefModFilter(ParamMFB)
 
 disp('--- Making modulation filter coefficients ---')
-LenFc = length(MFBparam.fc);
+LenFc = length(ParamMFB.fc);
 
 IIR_b = zeros(LenFc,4);
 IIR_a = zeros(LenFc,4);
 
 for nfc = 1:LenFc
 
-    if MFBparam.fc(nfc) == 1  % when 1 Hz
+    if ParamMFB.fc(nfc) == 1  % when 1 Hz
         % Third order lowpass filter
-        [b, a] = butter(3, MFBparam.fc(nfc)/(MFBparam.fs/2));
+        [b, a] = butter(3, ParamMFB.fc(nfc)/(ParamMFB.fs/2));
         b4 = b/a(1);
         a4 = a/a(1);
 
@@ -98,7 +88,7 @@ for nfc = 1:LenFc
 
     else % Bandpass filter
         % Pre-warping
-        w0 = 2*pi*MFBparam.fc(nfc)/MFBparam.fs;
+        w0 = 2*pi*ParamMFB.fc(nfc)/ParamMFB.fs;
 
         % Bilinear z-transform
         W0 = tan(w0/2);
@@ -120,8 +110,8 @@ end
 MFcoefIIR.a = IIR_a;
 MFcoefIIR.b = IIR_b;
 
-if MFBparam.SwPlot == 1   % plot & pause for confirmation
-    PlotFrspMF(MFBparam,MFcoefIIR);
+if ParamMFB.SwPlot == 1   % plot & pause for confirmation
+    PlotFrspMF(ParamMFB,MFcoefIIR);
     disp('Return to continue > ');
     pause;
 end
@@ -133,33 +123,27 @@ end
 %% Plot frequency response of the digital filter
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function PlotFrspMF(MFBparam,MFcoefIIR)
+function PlotFrspMF(ParamMFB,MFcoefIIR)
 
 hold on
-Nrsl = 1024*4; % > MFBparam.fs;
+Nrsl = 1024*4; % > ParamMFB.fs;
 
-for nfc = 1:length(MFBparam.fc)
-    [frsp, freq] = freqz(MFcoefIIR.b(nfc,:),MFcoefIIR.a(nfc,:),Nrsl,MFBparam.fs);
+for nfc = 1:length(ParamMFB.fc)
+    [frsp, freq] = freqz(MFcoefIIR.b(nfc,:),MFcoefIIR.a(nfc,:),Nrsl,ParamMFB.fs);
     plot(freq,20*log10(abs(frsp)));
 end
 
 hold off
 box on
-axis([0.25 max(MFBparam.fc)*2 -40 5]);
+axis([0.25 max(ParamMFB.fc)*2 -40 5]);
 grid;
 set(gca,'xscale','log');
-set(gca,'xtick',MFBparam.fc);
+set(gca,'xtick',ParamMFB.fc);
 xlabel('Frequency (Hz)');
 ylabel('Filter attenuation (dB)');
-Str_FcMFB = num2str(MFBparam.fc');
+Str_FcMFB = num2str(ParamMFB.fc');
 legend(Str_FcMFB,'location','southwest');
 title('Modulation filterbank');
 
 end
 
-
-%%%
-%%%
-
-% --- if isfield(MFBparam,'fc') ==0,  MFBparam.fc =[1 2 4 8 16 32 64 128 256]; end
-% --- if isfield(MFBparam,'fc') ==0,  MFBparam.fc =MFBparam.fc_default; end % v110 4 Aug 2022
