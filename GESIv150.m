@@ -452,7 +452,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 %%  ModFB analysis
-%    For test siginal, you should specify the hearling loss
+%    For test siginal, you should specify the hearing loss
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
