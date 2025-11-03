@@ -9,14 +9,14 @@
 %%  v123, 19-Oct-2022  
 %%  v130, 4-Jan-2024  
 %%  v149, 4-May-2025  
-%%  v150, 15-Jul-2025
+%%  v150, 15-Jul-2025  
 %% ======================================================================  
   
 GESIv110 : See ref [1]  
 GESIv123 : See ref [2]  
 GESIv130 : beta version including TMTF of a hearing impaired listener  
 GESIv149 : See ref [4]  
-GESIv150 : See ref [5]
+GESIv150 : See ref [5]  
   
 You need GCFBv233 or a later version from  
     https://github.com/AMLAB-Wakayama/gammachirp-filterbank/GCFBv234  
