@@ -365,7 +365,7 @@ SndTest =  10^(MdsAmpdB(2)/20)*SndTest; % adjusted by the same ratio
 %%    Analysis by GCFB (dynamic compressive gammachirp filterbank)
 % If there are files: GESIparam.NameSndRef,  GESIparam.NameSndTest, save GCout for speed up
 %       GCFB takes about 3sec for 0.9sec sound.  RTF = 3; (M1 Mac, R2022b, 14 May 2024)
-%       MFB takes about 0.8 sce for 0.9sec sound. RTF < 1;
+%       MFB takes about 0.8 sec for 0.9sec sound. RTF < 1;
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
